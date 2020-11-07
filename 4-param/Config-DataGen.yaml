@@ -17,8 +17,8 @@ T: 10000
 D: 10000
 
 # Save Path
-pkl_path: './simData_'
-plot_path: './plot_'
+pkl_path: 'simData_'
+plt_path: 'plot_'
 
 
 ## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7388782/

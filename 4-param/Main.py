@@ -5,12 +5,10 @@ import pickle
 import os
 import torch
 import matplotlib.pyplot as plt
-from functions import randomSample, getLogProb
+from EM import randomSample, getLogProb
 import pandas as pd
 from tensorboardX import SummaryWriter
-#from torch.utils.tensorboard import SummaryWriter
 import datetime
-#import torch_optimizer as optim
 import torch.optim as optim
 from torch.optim import lr_scheduler
 
