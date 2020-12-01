@@ -14,7 +14,7 @@ log_path: 'logs'
 # Optimization Settings
 eta1: 5e-3
 eta2: 5e-3
-eta3: 5e-3
+eta3: 1e-2
 eta4: 1e-3
 
 decay: 500

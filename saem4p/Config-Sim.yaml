@@ -1,0 +1,20 @@
+# Discretizations
+T: 10000
+D: 10000
+
+# Sim settings
+batch: 1    ## DO NOT CHANGE! CODE NOT COMPATIBLE FOR BATCH>1
+
+# Load Path
+data_path: 'data/simData_1e6-0-1-0_0.2-0.4-0.7-0.07-450.pkl'
+log_path: 'logs'
+
+# Optimization Settings
+eta1: 5e-3
+eta2: 5e-3
+eta3: 5e-3
+eta4: 1e-3
+
+decay-gd: 50
+decay-em: 10
+iters: 10000

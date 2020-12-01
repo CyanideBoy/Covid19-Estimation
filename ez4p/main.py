@@ -5,10 +5,12 @@ import pickle
 import os
 import torch
 import matplotlib.pyplot as plt
-from EM import randomSample, getLogProb
+from functions import randomSample, getLogProb
 import pandas as pd
 from tensorboardX import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
 import datetime
+#import torch_optimizer as optim
 import torch.optim as optim
 from torch.optim import lr_scheduler
 
@@ -45,8 +47,8 @@ rData = Data[3,:].copy()
 iMax = np.max(iData)
 dayMax = np.argmax(iData)
 
-initDay = np.argmin((iData[:dayMax]-iMax/5)**2)
-finalDay = dayMax + np.argmin((iData[dayMax:]-iMax/5)**2)
+initDay = np.argmin((iData[:dayMax]-iMax/2)**2)
+finalDay = dayMax + np.argmin((iData[dayMax:]-iMax/2)**2)
 
 
 ############# Data to be considered
@@ -71,16 +73,16 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 ############# PARAM INIT
-lamb = torch.tensor([0.1]).double().to(device)  #0.2
+lamb = torch.tensor([0.05]).double().to(device)  #0.2
 lamb.requires_grad = True
 
-alpha = torch.tensor([0.2]).double().to(device) #0.4
+alpha = torch.tensor([0.5]).double().to(device) #0.4
 alpha.requires_grad = True
 
 mu = torch.tensor([0.5]).double().to(device)    #0.7
 mu.requires_grad = True
 
-gamma = torch.tensor([0.02]).double().to(device)    #0.07
+gamma = torch.tensor([0.1]).double().to(device)    #0.07
 gamma.requires_grad = True
 
 theta = [lamb,alpha,mu,gamma]
@@ -112,9 +114,6 @@ if bool(config['resume']):
         theta = torch.load('weights/'+w_name)
 
 #### Sim Loop
-Q = 0
-y = [0,0,0,0]
-yp = [0,0,0,0]
 
 optimizer = optim.Adam([{'params': theta[0], 'lr': eta[0]},
             {'params': theta[1], 'lr': eta[1]},
@@ -152,23 +151,11 @@ while it < iters:
                                         'Gamma':theta[3].detach().cpu().numpy()}, it)
     writer.add_scalars('Log Likelihood', {'LL ': LL.detach().cpu().numpy()}, it)    
     writer.flush()
-    
-    
-    # with torch.no_grad():
-    #     for j,v in enumerate(theta):
-    #         #y[j] = v + eta[j]*v.grad.data/(1+(it/decay)) 
-    #         #v += (y[j] + (y[j]-yp[j])*it/(it+3)) - v
-    #         #yp[j] = y[j]
 
-    #         v += eta[j]*v.grad.data/(1+(it/decay))
-    #         v.grad.data.zero_()
-    
     optimizer.step()
     with torch.no_grad():
         for x in theta:
             x += x.clamp_(0.02,0.98)-x
-
-    
     
     if it%100 == 0:
         torch.save(theta,'weights/{}-iter-{}.pt'.format(SimName,it))

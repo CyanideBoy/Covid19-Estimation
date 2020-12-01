@@ -31,9 +31,9 @@ def randomSample(iObs, siTran, irTran, initCond, theta, T, D, B):
             Delta_S = S[j,i]/D
             Delta_A = A[j,i]/D
                 
-            dsi =  irTran[i]/Delta_S
+            dsi =  siTran[i]/Delta_S
             ek[j,i,0] = np.random.binomial(T-int(dsi),P) #(T-int(dsi))*P #
-            
+
             A[j,i+1] = A[j,i] + Delta_S*ek[j,i,0] - Delta_A*ek[j,i,1]
             S[j,i+1] = S[j,i] - Delta_S*(ek[j,i,0] + int(dsi))
             i += 1 
@@ -52,14 +52,14 @@ def getLogProb(iObs, siTran, irTran, ek, A, S, theta, initCond, T, D, device):
     S = torch.tensor(S).to(device)
     A = torch.tensor(A).to(device)
     
-    esiTran = torch.zeros((B,len(siTran))).to(device).double() #np.tile(siTran.copy(),(B,1))
-    
+    esiTran = torch.zeros((B,len(siTran))).to(device).double() #np.tile(siTran.copy(),(B,1))    
     for i in range(len(siTran)):
         esiTran[:,i] = D*siTran[i]/S[:,i]
-    
-    weights = np.exp(-np.arange(H))
-    weights = H*weights/np.sum(weights)
-    #print(weights)
+
+    C = 0.1
+    #conf = np.exp(-C*np.arange(H))
+    conf = 1/(1+np.arange(H))
+    conf = H*conf/np.sum(conf)
 
     for i in range(H):
         PS = (D*theta[0]*(theta[1]*iObs[i]+A[:,i])/(N*T)).double()
@@ -72,11 +72,11 @@ def getLogProb(iObs, siTran, irTran, ek, A, S, theta, initCond, T, D, device):
 
         for j in range(B):
             if ek[j,i,0] == 0:
-                P2 += weights[i]*(esiTran[j,i]*torch.log(theta[2]))[0]  #F.kl_div(torch.tensor([1,0]).log(), torch.cat((theta[2],1-theta[2])), reduction='sum')
+                P2 += (esiTran[j,i]*torch.log(theta[2]))[0]  #F.kl_div(torch.tensor([1,0]).log(), torch.cat((theta[2],1-theta[2])), reduction='sum')
             elif esiTran[j,i] == 0:
-                P2 += weights[i]*(ek[j,i,0]*torch.log(1-theta[2]))[0]
+                P2 += (ek[j,i,0]*torch.log(1-theta[2]))[0]
             else:
-                P2 += -weights[i]*(ek[j,i,0]+esiTran[j,i])*F.kl_div(torch.log(torch.cat((theta[2],1-theta[2]))), torch.tensor([esiTran[j,i]/(ek[j,i,0]+esiTran[j,i]),ek[j,i,0]/(ek[j,i,0]+esiTran[j,i])]).to(device), reduction='sum')
+                P2 += -(ek[j,i,0]+esiTran[j,i])*F.kl_div(torch.log(torch.cat((theta[2],1-theta[2]))), torch.tensor([esiTran[j,i]/(ek[j,i,0]+esiTran[j,i]),ek[j,i,0]/(ek[j,i,0]+esiTran[j,i])]).to(device), reduction='sum')
         
         #### P3
         X = torch.tensor([irTran[i]/iObs[i],1-(irTran[i]/iObs[i])]).to(device).double()
@@ -90,6 +90,6 @@ def getLogProb(iObs, siTran, irTran, ek, A, S, theta, initCond, T, D, device):
         Y[B:] = 1-PA
         P4 = -T*(X * (X/Y).log()).sum()
         
-        ll += P1+P2+P3+P4
+        ll += conf[i]*(P1+P2+P3+P4)
     
     return ll

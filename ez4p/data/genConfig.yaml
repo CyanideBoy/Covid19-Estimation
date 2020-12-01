@@ -1,0 +1,24 @@
+# Initial Population
+S0: 1e6
+I0: 0
+A0: 1
+R0: 0
+
+
+# Parameters
+lamb: 0.2
+alpha: 0.4
+mu: 0.7
+gamma: 0.07
+
+# Sim settings
+horizon: 450
+T: 10000
+D: 10000
+
+# Save Path
+pkl_path: './simData_'
+plot_path: './plot_'
+
+
+## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7388782/
