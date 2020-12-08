@@ -35,8 +35,10 @@ eta = [eta1,eta2,eta3,eta4]
 decay_gd = float(config['decay-gd'])
 decay_em = float(config['decay-em'])
 iters = int(config['iters'])
-BSIZE = int(config['batch'])
-
+BSIZE = 1
+SAEM = int(config['saem'])
+F_NAME = config['name']
+seed = int(config['seed'])
 
 sData = Data[0,:].copy()
 iData = Data[1,:].copy()    ## only iData accessible
@@ -48,7 +50,6 @@ dayMax = np.argmax(iData)
 
 initDay = np.argmin((iData[:dayMax]-iMax/2)**2)
 finalDay = dayMax + np.argmin((iData[dayMax:]-iMax/2)**2)
-
 
 ############# Data to be considered
 H = finalDay - initDay
@@ -65,22 +66,22 @@ N = np.sum(initCond)
 #dataset.to_csv('var.csv')
 
 ############## Seeding
-np.random.seed(0)
-torch.manual_seed(0)
+np.random.seed(seed)
+torch.manual_seed(seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 ############# PARAM INIT
-lamb = torch.tensor([0.1]).double().to(device)  #0.2
+lamb = torch.tensor([0.1*np.random.random_sample()]).double().to(device)  #0.2
 lamb.requires_grad = True
 
-alpha = torch.tensor([0.5]).double().to(device) #0.4
+alpha = torch.tensor([np.random.random_sample()]).double().to(device) #0.4
 alpha.requires_grad = True
 
-mu = torch.tensor([0.6]).double().to(device)    #0.7
+mu = torch.tensor([0.5]).double().to(device)    #0.7
 mu.requires_grad = True
 
-gamma = torch.tensor([0.1]).double().to(device)    #0.07
+gamma = torch.tensor([0.1*np.random.random_sample()]).double().to(device)    #0.07
 gamma.requires_grad = True
 
 theta = [lamb,alpha,mu,gamma]
@@ -93,35 +94,26 @@ print('Parameters Initial Condition - Lambda: {:.2f}, Alpha: {:.2f}, Mu: {:.2f},
 it = 0
 
 #### Sim Loop
-Q = 0
-y = [0,0,0,0]
-yp = [0,0,0,0]
-
-opt1 = optim.Adam([{'params': theta[0], 'lr': eta[0]},
+optR = optim.Adam([{'params': theta[0], 'lr': eta[0]},
             {'params': theta[2], 'lr': eta[2]},
             {'params': theta[3], 'lr': eta[3]},
             ], lr=1e-2)
-opt2 = optim.Adam([{'params': theta[0], 'lr': eta[0]}], lr=1e-2)
-opt3 = optim.Adam([{'params': theta[1], 'lr': eta[1]}], lr=1e-2)
+optA = optim.Adam([{'params': theta[1], 'lr': eta[1]}], lr=1e-2)
 
-lambda1 = lambda epoch: 1/(1+epoch/decay_gd) if epoch < 80 else 0
-lambda_alpha = lambda epoch: 1/(1+(epoch-80)/decay_gd) if epoch>=80 else 0
-#scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda= lambda1) #lr_lambda= [lambda1,lambda_alpha,lambda1,lambda1])
-#scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda= [lambda1,lambda_alpha,lambda1,lambda1])
+lambdaR = lambda epoch: 1/(1+epoch/(2*decay_gd)) #if epoch<=100 else 0
+lambdaA = lambda epoch: 1/(1+epoch/decay_gd) if epoch >= 50 else 0
 
-s1 = lr_scheduler.LambdaLR(opt1, lr_lambda= lambda1)
-s2 = lr_scheduler.LambdaLR(opt2, lr_lambda= lambda1)
-s3 = lr_scheduler.LambdaLR(opt3, lr_lambda= lambda_alpha)
+sR = lr_scheduler.LambdaLR(optR, lr_lambda= lambdaR)
+sA = lr_scheduler.LambdaLR(optA, lr_lambda= lambdaA)
 
-Ek = np.zeros((16,H,2))
-A = np.zeros((16,H+1))
-S = np.zeros((16,H+1))
+Ek = np.zeros((SAEM,H,2))
+A = np.zeros((SAEM,H+1))
+S = np.zeros((SAEM,H+1))
 
 while it < iters:
-    
-    opt1.zero_grad()
-    opt2.zero_grad()
-    opt3.zero_grad()
+
+    optR.zero_grad()
+    optA.zero_grad()
     
     h_len = H #np.random.randint(1,H)
     Ek = np.roll(Ek,1,axis=0)
@@ -129,18 +121,17 @@ while it < iters:
     S = np.roll(S,1,axis=0)
 
     ek,a,s = randomSample(iObs[:h_len+1],siTran[:h_len],irTran[:h_len],initCond,[x.detach().cpu().numpy() for x in theta],T,D,BSIZE)
+    
     if it == 0:
-        Ek = np.tile(ek,(16,1,1))
-        S = np.tile(s,(16,1))
-        A = np.tile(a,(16,1))
-        
+        Ek = np.tile(ek,(SAEM,1,1))
+        S = np.tile(s,(SAEM,1))
+        A = np.tile(a,(SAEM,1)) 
     else:
         Ek[0] = ek[0]
         S[0] = s[0]
         A[0] = a[0]
         
-
-    LL = -H*getLogProb(iObs[:h_len+1],siTran[:h_len],irTran[:h_len],torch.tensor(Ek).to(device),A,S,theta,initCond,T,D,it,decay_em,device)/(BSIZE*h_len)
+    LL = -H*getLogProb(iObs[:h_len+1],siTran[:h_len],irTran[:h_len],torch.tensor(Ek).to(device),A,S,theta,initCond,T,D,it,decay_em,device)/(BSIZE*SAEM*h_len)
     LL.backward()
     
     writer.add_scalars('Parameters', {'Lambda':theta[0].detach().cpu().numpy(),
@@ -150,22 +141,22 @@ while it < iters:
     writer.add_scalars('Log Likelihood', {'LL ': LL.detach().cpu().numpy()}, it)    
     writer.flush()
     
-    opt2.zero_grad()
-    opt3.zero_grad()
-    
-    if it%10 == 0:
-        print('Iteration {} ongoing....'.format(it+1))
+    if it%50 == 0:
+        print('---------- Iteration {} ongoing -------'.format(it+1))
         print('Theta : ',[t.cpu().item() for t in theta])
         print('LL : ',LL.item())
         print('Gradients : ',[x.grad.item() for x in theta])
-    opt1.step()
+    
+    optR.step()
+    optA.step()
 
-    PP = -H*getP1(iObs[:h_len+1],siTran[:h_len],irTran[:h_len],torch.tensor(Ek).to(device),A,S,theta,initCond,T,D,it,decay_em,device)/(BSIZE*h_len)
+    '''
+    PP = -H*getP1(iObs[:h_len+1],siTran[:h_len],irTran[:h_len],torch.tensor(Ek).to(device),A,S,theta,initCond,T,D,it,decay_em,device)/(BSIZE*SAEM*h_len)
     PP.backward()
     if it%10 == 0:
-        print('Gradients : ',theta[0].grad.item(),theta[1].grad.item())
-    opt2.step()
-    opt3.step()
+        print('Gradients : ',theta[1].grad.item())
+    optA.step()
+    '''
 
     with torch.no_grad():
         for x in theta:
@@ -174,8 +165,15 @@ while it < iters:
     if it%100 == 0:
         torch.save(theta,'weights/{}-iter-{}.pt'.format(SimName,it))
     it += 1
-    s1.step()
-    s2.step()
-    s3.step()
-
+    
+    sR.step()
+    sA.step()
+    
 writer.close()
+
+### Print Final Values
+print('Theta : ',[t.cpu().item() for t in theta])
+with open('results/'+F_NAME+'.txt','w') as f:
+    for i in range(len(theta)):
+        f.write(str(theta[i].cpu().item())+'\n')
+        print(theta[i].cpu().item())

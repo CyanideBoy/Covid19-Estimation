@@ -44,7 +44,7 @@ def randomSample(iObs, siTran, irTran, initCond, theta, T, D, B):
 def getLogProb(iObs, siTran, irTran, ek, A, S, theta, initCond, T, D, it, decay, device):
     N = np.sum(initCond)
     H = ek.shape[1]
-    B = ek.shape[0]
+    SAEM = ek.shape[0]
     
     PI = (D*theta[3]/T).double()
     PA = (D*theta[3]/T).double()
@@ -53,22 +53,22 @@ def getLogProb(iObs, siTran, irTran, ek, A, S, theta, initCond, T, D, it, decay,
     S = torch.tensor(S).to(device)
     A = torch.tensor(A).to(device)
     
-    esiTran = torch.zeros((B,len(siTran))).to(device).double() #np.tile(siTran.copy(),(B,1))
+    esiTran = torch.zeros((SAEM,len(siTran))).to(device).double() #np.tile(siTran.copy(),(B,1))
     
     for i in range(len(siTran)):
         esiTran[:,i] = D*siTran[i]/S[:,i]
     
-    #weights = np.exp(-2*np.arange(H))
-    #weights = H*weights/np.sum(weights)
+    weights = np.ones(H) #np.exp(-2*np.arange(H))
+    weights = H*weights/np.sum(weights)
     
-    if it>B:
-        rates = 1/(1+(it+np.arange(B))/decay)
+    if it>SAEM:
+        rates = 1/(1+(it-np.arange(SAEM))/decay)
         rates = rates/np.sum(rates)
     else:
-        rates = np.ones(B)/B
+        rates = np.ones(SAEM)/SAEM
 
     for i in range(H):
-        for j in range(B):
+        for j in range(SAEM):
             PS = (D*theta[0]*(theta[1]*iObs[i]+A[j,i])/(N*T)).double()
 
             #### P1
@@ -92,13 +92,13 @@ def getLogProb(iObs, siTran, irTran, ek, A, S, theta, initCond, T, D, it, decay,
             Y = torch.cat((PA,1-PA))
             P4 = -T*(X * (X/Y).log()).sum()
         
-            ll += (P1+P2+P3+P4)*rates[j]
+            ll += (P1+P2+P3+P4)*rates[j]*weights[i]
     return ll
 
 def getP1(iObs, siTran, irTran, ek, A, S, theta, initCond, T, D, it, decay, device):
     N = np.sum(initCond)
     H = ek.shape[1]
-    B = ek.shape[0]
+    SAEM = ek.shape[0]
     
     PI = (D*theta[3]/T).double()
     PA = (D*theta[3]/T).double()
@@ -107,25 +107,19 @@ def getP1(iObs, siTran, irTran, ek, A, S, theta, initCond, T, D, it, decay, devi
     S = torch.tensor(S).to(device)
     A = torch.tensor(A).to(device)
     
-    esiTran = torch.zeros((B,len(siTran))).to(device).double() #np.tile(siTran.copy(),(B,1))
+    esiTran = torch.zeros((SAEM,len(siTran))).to(device).double() #np.tile(siTran.copy(),(B,1))
     
     for i in range(len(siTran)):
         esiTran[:,i] = D*siTran[i]/S[:,i]
     
-    weights = np.exp(-5*np.arange(H))
+    weights = np.exp(-2*np.arange(H))
     weights = H*weights/np.sum(weights)
-    
-    if it>B:
-        rates = 1/(1+(it+np.arange(B))/decay)
-        rates = rates/np.sum(rates)
-    else:
-        rates = np.ones(B)/B
 
     for i in range(H):
-        for j in range(B):
-            PS = (D*theta[0]*(theta[1]*iObs[i]+A[j,i])/(N*T)).double()
+        PS = (D*theta[0]*(theta[1]*iObs[i]+A[0,i])/(N*T)).double()
 
-            #### P1
-            P1 = -T*F.kl_div(torch.log(torch.cat((PS,1-PS))), torch.tensor([(ek[j,i,0]+esiTran[j,i])/T,1-(ek[j,i,0]+esiTran[j,i])/T]).to(device), reduction='sum')
-            ll += P1*rates[j]*weights[i]
+        #### P1
+        #P1 = -T*F.kl_div(torch.log(torch.cat((PS,1-PS))), torch.tensor([(ek[j,i,0]+esiTran[j,i])/T,1-(ek[j,i,0]+esiTran[j,i])/T]).to(device), reduction='sum')
+        P1 = -T*F.kl_div(torch.log(torch.cat((PS*theta[2],1-PS*theta[2]))), torch.tensor([esiTran[0,i]/T,1-(esiTran[0,i]/T)]).to(device), reduction='sum')
+        ll += P1*weights[i]
     return ll
