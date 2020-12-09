@@ -46,30 +46,26 @@ def plotter(t,A,P,path):
     fig = plt.figure()
 
     ax1 = fig.add_subplot(gs[0, 0]) # row 0, col 0
-    ax1.plot(t, A[:,0], label='GT',color='black')
-    ax1.plot(t, P[:,0], label='Pred',color='blue')
-    leg = ax1.legend(loc='upper left',fontsize='xx-small')
+    ax1.plot(t, A[:,0], '--', label='GT',color='gray')
+    ax1.plot(t, P[:,0], label='Pred',color='gray')
     plt.title('S Compartment')
     plt.grid()
 
     ax2 = fig.add_subplot(gs[0, 1]) # row 0, col 1
-    ax2.plot(t, A[:,1], label='GT',color='black')
+    ax2.plot(t, A[:,1], '--', label='GT',color='blue')
     ax2.plot(t, P[:,1], label='Pred',color='blue')
-    leg = ax2.legend(loc='upper left',fontsize='xx-small')
     plt.title('I Compartment')
     plt.grid()
 
     ax3 = fig.add_subplot(gs[1, 0]) # row 1, col 0
-    ax3.plot(t, A[:,2], label='GT',color='black')
-    ax3.plot(t, P[:,2], label='Pred',color='blue')
-    leg = ax3.legend(loc='upper left',fontsize='xx-small')
+    ax3.plot(t, A[:,2], '--', label='GT',color='red')
+    ax3.plot(t, P[:,2], label='Pred',color='red')
     plt.title('A Compartment')
     plt.grid()
 
     ax4 = fig.add_subplot(gs[1, 1]) # row 0, col 1
-    ax4.plot(t, A[:,3], label='GT',color='black')
-    ax4.plot(t, P[:,3], label='Pred',color='blue')
-    leg = ax4.legend(loc='upper left',fontsize='xx-small')
+    ax4.plot(t, A[:,3], '--', label='GT',color='orange')
+    ax4.plot(t, P[:,3], label='Pred',color='orange')
     plt.title('R Compartment')
     plt.grid()
 
@@ -81,32 +77,18 @@ def plotter(t,A,P,path):
     plt.savefig(path)
     return
 
-def plot_corr(aF,tF,aH,tH):
-
-    # Create 2x1 sub plots
-    gs = gridspec.GridSpec(2, 1)
-    gs.update(hspace=0.4)
+def plot_corr(aH,tH):
 
     fig = plt.figure()
-    ax1 = fig.add_subplot(gs[0, 0]) # row 0, col 0
-    ax1.plot(tF, aF)
-    plt.title('Full Auto-correlation')
-    plt.grid()
-
-    ax2 = fig.add_subplot(gs[1, 0]) # row 0, col 1
-    ax2.plot(tH, aH)
-    plt.title('Horizon Auto-correlation')
-    plt.grid()
-
-    #plt.title('Compartment Populations')
-    #plt.xlabel('Time (in days)')
-    #plt.ylabel('Population')
-    #plt.grid()
-
-    plt.savefig('autoC.png')
+    plt.plot(tH, aH)
+    plt.title('Auto-correlation')
+    plt.grid(True)
+    plt.xlabel('Time (in days)')
+    plt.ylabel('Population')
+    plt.savefig('results/autoC.png')
     return
 
-def f_RMSE(x):
+def RMSE(x):
     return np.sqrt(np.mean(np.square(x)))
 
 def main(config, thetaP):
@@ -131,14 +113,14 @@ def main(config, thetaP):
 
     gA = genData(Z0,thetaA,T)
     DataAF = gA[:,:4]
-    gP = genData(Z0,thetaP,T)
-    DataPF = gP[:,:4]
+    #gP = genData(Z0,thetaP,T)
+    #DataPF = gP[:,:4]
     
     ## Compute Window Used in the Experiment
     iMax = np.max(DataAF[:,1])
     dayMax = np.argmax(DataAF[:,1])
-    initDay = np.argmin((DataAF[:dayMax,1]-iMax/4)**2)
-    finalDay = dayMax + np.argmin((DataAF[dayMax:,1]-iMax/4)**2)
+    initDay = np.argmin((DataAF[:dayMax,1]-iMax/2)**2)
+    finalDay = dayMax + np.argmin((DataAF[dayMax:,1]-iMax/2)**2)
     H = finalDay-initDay
     print('Horizon Length :' ,H)
 
@@ -147,6 +129,7 @@ def main(config, thetaP):
     gP = genData(list(DataAF[initDay,:]),thetaP,H)
     DataPH = gP[:,:4]
 
+    '''
     ## Compute RMSE
     rmseF_S = f_RMSE(DataAF[:,0] - DataPF[:,0])
     rmseF_I = f_RMSE(DataAF[:,1] - DataPF[:,1])
@@ -165,30 +148,30 @@ def main(config, thetaP):
     rmseF_pI = f_RMSE((DataAF[A:B,1] - DataPF[A:B,1])/DataAF[A:B,1])
     rmseF_pA = f_RMSE((DataAF[A:B,2] - DataPF[A:B,2])/DataAF[A:B,2])
     rmseF_pR = f_RMSE((DataAF[A:B,3] - DataPF[A:B,3])/DataAF[A:B,3])
-
-    rmseH_pS = f_RMSE((DataAH[:,0] - DataPH[:,0])/DataAH[:,0])
-    rmseH_pI = f_RMSE((DataAH[:,1] - DataPH[:,1])/DataAH[:,1])
-    rmseH_pA = f_RMSE((DataAH[:,2] - DataPH[:,2])/DataAH[:,2])
-    rmseH_pR = f_RMSE((DataAH[:,3] - DataPH[:,3])/DataAH[:,3])
+    '''
+    rmseH_pS = RMSE((DataAH[:,0] - DataPH[:,0])/DataAH[:,0])
+    rmseH_pI = RMSE((DataAH[:,1] - DataPH[:,1])/DataAH[:,1])
+    rmseH_pA = RMSE((DataAH[:,2] - DataPH[:,2])/DataAH[:,2])
+    rmseH_pR = RMSE((DataAH[:,3] - DataPH[:,3])/DataAH[:,3])
     
     ## AutoCorr
-    eF = DataAF[A:B,0] - DataPF[A:B,0]
-    eH = DataAH[:,0] - DataPH[:,0]
-    
-    eF = eF[2:-2]/DataAF[A+2:B-2,0] #np.convolve(eF,np.array([1,3,5,3,1])/13,'valid')
-    eH = eH[2:-2]/eH[2:-2] #np.convolve(eH,np.array([1,3,5,3,1])/13,'valid')
-    eF = eF - eF.mean()
-    eH = eH - eH.mean()
+    #eH = (DataAH[:,0] - DataPH[:,0])/(100+DataAH[:,0])
+    #eH = eH[2:-2]/eH[2:-2] #np.convolve(eH,np.array([1,3,5,3,1])/13,'valid')
+    #eH = eH - eH.mean()
+    #aH = np.correlate(eH,eH,mode='full')
+    #print(eH.shape)
+    #aHmid = len(eH)-1
+    #tH = np.arange(len(aH))-aHmid
+    #plot_corr(aH,tH)
 
-    aF = np.correlate(eF,eF,mode='full')
-    aH = np.correlate(eH,eH,mode='full')
-    aFmid = len(eF)-1
-    aHmid = len(eH)-1
-    tF = np.arange(len(aF))-aFmid
-    tH = np.arange(len(aH))-aHmid
-    plot_corr(aF,tF,aH,tH)
-    print(eF.mean())
-    print(eH.mean())
+    #eF = DataAF[A:B,0] - DataPF[A:B,0]
+    #eF = eF[2:-2]/DataAF[A+2:B-2,0] #np.convolve(eF,np.array([1,3,5,3,1])/13,'valid')
+    #eF = eF - eF.mean()
+    #aF = np.correlate(eF,eF,mode='full')
+    #aFmid = len(eF)-1
+    #tF = np.arange(len(aF))-aFmid
+    #print(eF.mean())
+    
     '''
     ## Convert to Single Array
     eqAF = (DataAF[:,0]/N) + N*(DataAF[:,1]/N) + N*N*(DataAF[:,2]/N) + N*N*N*(DataAF[:,3]/N)  
@@ -205,10 +188,16 @@ def main(config, thetaP):
     AMIH = metrics.adjusted_mutual_info_score(eqAH,eqPH)
     '''
     ## PRINT METRICS
-    print('RMSE Full ',[rmseF_S,rmseF_I,rmseF_A,rmseF_R])
-    print('RMSE Half ',[rmseH_S,rmseH_I,rmseH_A,rmseH_R])
-    print('RMSE Percent Full ',[rmseF_pS,rmseF_pI,rmseF_pA,rmseF_pR])
+    #print('RMSE Full ',[rmseF_S,rmseF_I,rmseF_A,rmseF_R])
+    #print('RMSE Half ',[rmseH_S,rmseH_I,rmseH_A,rmseH_R])
+    #print('RMSE Percent Full ',[rmseF_pS,rmseF_pI,rmseF_pA,rmseF_pR])
     print('RMSE Percent Half ',[rmseH_pS,rmseH_pI,rmseH_pA,rmseH_pR])
+    
+    #Cross Corr - 
+    print('Normalized Cross Corr S',np.sum(DataAH[:,0]*DataPH[:,0])/(len(DataAH[:,0])*RMSE(DataAH[:,0])*RMSE(DataPH[:,0])))
+    print('Normalized Cross Corr I',np.sum(DataAH[:,1]*DataPH[:,1])/(len(DataAH[:,1])*RMSE(DataAH[:,1])*RMSE(DataPH[:,1])))
+    print('Normalized Cross Corr A',np.sum(DataAH[:,2]*DataPH[:,2])/(len(DataAH[:,2])*RMSE(DataAH[:,2])*RMSE(DataPH[:,2])))
+    print('Normalized Cross Corr R',np.sum(DataAH[:,3]*DataPH[:,3])/(len(DataAH[:,3])*RMSE(DataAH[:,3])*RMSE(DataPH[:,3])))
     '''
     print("------")
     print('MI Full: ',MIF,' Max MI=',MIF_max)
@@ -217,15 +206,15 @@ def main(config, thetaP):
     print('AMI Half: ',AMIH)
     '''
     ### Plots
-    time = np.linspace(0,T,T+1)
-    plotter(time,DataAF/N,DataPF/N,'F.png')
+    #time = np.linspace(0,T,T+1)
+    #plotter(time,DataAF/N,DataPF/N,'F.png')
 
     time = np.linspace(0,H,H+1)
-    plotter(time,DataAH/N,DataPH/N,'H.png')
+    plotter(time,DataAH/N,DataPH/N,'results/dyanmics.png')
 
     return 
 
 if __name__ == "__main__":
     config = yaml.load(open('Config-DataGen.yaml', 'r'), Loader=yaml.FullLoader)
-    thetaP = list(np.loadtxt('results/uniform-len-4.txt'))
+    thetaP = list(np.loadtxt('results/seed3-rand-mu5.txt'))
     main(config, thetaP)   

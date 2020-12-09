@@ -81,6 +81,7 @@ def getLogProb(iObs, siTran, irTran, ek, A, S, theta, initCond, T, D, it, decay,
                 P2 = (ek[j,i,0]*torch.log(1-theta[2]))[0]
             else:
                 P2 = -(ek[j,i,0]+esiTran[j,i])*F.kl_div(torch.log(torch.cat((theta[2],1-theta[2]))), torch.tensor([esiTran[j,i]/(ek[j,i,0]+esiTran[j,i]),ek[j,i,0]/(ek[j,i,0]+esiTran[j,i])]).to(device), reduction='sum')
+            #print(esiTran[j,i]/(ek[j,i,0]+esiTran[j,i]))
             
             #### P3
             X = torch.tensor([irTran[i]/iObs[i],1-(irTran[i]/iObs[i])]).to(device).double()
