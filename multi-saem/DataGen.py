@@ -1,9 +1,11 @@
 import numpy as np
 import scipy.integrate as spi
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import yaml
 import pickle
 import os
+
 
 def SIAR(Z,t,theta):
     lamb = theta[0]
@@ -40,54 +42,44 @@ def genData(Z0,theta,T):
 
     return data
 
-def plotter(tm,tt,y,p1,p2,p3):
-    
-    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+def plotter(tm,tt,y,path):
 
-    ax.plot(tm, y[:, 0], label='Susceptible',color='teal')
-    ax.plot(tm, y[:, 1], label='Infectious',color='blue')
-    ax.plot(tm, y[:, 2], label='Asymptomatic',color='orange')
-    ax.plot(tm, y[:, 3], label='Recovered',color='red')
+    # Create 2x2 sub plots
+    gs = gridspec.GridSpec(2, 2)
+    gs.update(hspace=0.4)
+
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(gs[0, 0]) # row 0, col 0
+    ax1.plot(tt, np.diff(y[:, 4]), label='New Infected (S-I)',color='orange')
+    ax1.plot(tt, np.diff(y[:, 5]), label='New Asymp. (S-A)',color='red')
+    ax1.plot(tt, np.diff(y[:, 6]), label='New Recovered (I-R)',color='blue')
+    leg = ax1.legend(loc='upper left',fontsize='xx-small')
+    plt.title('Daily Transitions')
+    plt.grid()
+
+    ax2 = fig.add_subplot(gs[0, 1]) # row 0, col 1
+    ax2.plot(tm, y[:, 4], label='Net Sympt. (S-I)',color='orange')
+    ax2.plot(tm, y[:, 5], label='Net Asympt. (S-A)',color='red')
+    ax2.plot(tm, y[:, 6], label='Net Recovered (I-R)',color='blue')
+    leg = ax2.legend(fontsize='xx-small')
+    plt.grid()
+    plt.title('Total Transitions Since Start')
+
+    ax3 = fig.add_subplot(gs[1, :]) # row 1, span all columns
+    ax3.plot(tm, y[:, 0], label='Susceptible',color='teal')
+    ax3.plot(tm, y[:, 1], label='Infectious',color='blue')
+    ax3.plot(tm, y[:, 2], label='Asymptomatic',color='orange')
+    ax3.plot(tm, y[:, 3], label='Recovered',color='red') 
+    leg = ax3.legend(fontsize='small')
     
-    leg = ax.legend()
-    for legobj in leg.legendHandles:
-        legobj.set_linewidth(3.0)
-    plt.title('Time Evolution of Epidemic')
+    
+    plt.title('Compartment Populations')
     plt.xlabel('Time (in days)')
     plt.ylabel('Population')
     plt.grid()
-    plt.savefig(p1)
 
-    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
-
-    ax.plot(tm, y[:, 4], label='Net Sympt. (S-I)',color='orange')
-    ax.plot(tm, y[:, 5], label='Net Asympt. (S-A)',color='red')
-    ax.plot(tm, y[:, 6], label='Net Recovered (I-R)',color='blue')
-    
-    leg = ax.legend()
-    for legobj in leg.legendHandles:
-        legobj.set_linewidth(3.0)
-    plt.title('Time Evolution of Epidemic')
-    plt.xlabel('Time (in days)')
-    plt.ylabel('Population')
-    plt.grid()
-    plt.savefig(p2)
-
-
-    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
-
-    ax.plot(tt, np.diff(y[:, 4]), label='New Infected (S-I)',color='orange')
-    ax.plot(tt, np.diff(y[:, 5]), label='New Asymp. (S-A)',color='red')
-    ax.plot(tt, np.diff(y[:, 6]), label='New Recovered (I-R)',color='blue')
-    
-    leg = ax.legend()
-    for legobj in leg.legendHandles:
-        legobj.set_linewidth(3.0)
-    plt.title('Time Evolution of Epidemic')
-    plt.xlabel('Time (in days)')
-    plt.ylabel('Population')
-    plt.grid()
-    plt.savefig(p3)
+    plt.savefig(path)
 
     return
 
@@ -111,15 +103,14 @@ def main(config):
     theta = [str(th) for th in theta]
 
     pkl_path = config['pkl_path']
-    plot_path = config['plot_path']
+    plt_path = config['plt_path']
     
     name = '-'.join(Z0) + '_' + '-'.join(theta)+'-'+str(T)    
+    print(name)
     
-    pkl_path = pkl_path + name + '.pkl'
-    p1 = plot_path + name + '_main.png'
-    p2 = plot_path + name + '_NetTrans.png'
-    p3 = plot_path + name + '_Trans.png'
-
+    pkl_path = 'data/' + pkl_path + name + '.pkl'
+    plt_path = 'data/' + plt_path + name + '.png'
+    
     
 
     Z0f = [float(z) for z in Z0]
@@ -134,7 +125,7 @@ def main(config):
 
     time_main = np.linspace(0,T,T+1)
     time_trans = np.linspace(0,T-1,T)
-    plotter(time_main,time_trans,garbage/N,p1,p2,p3)
+    plotter(time_main,time_trans,garbage/N,plt_path)
     
     Data = np.transpose(Data)
     Trans = np.transpose(Trans)
@@ -146,6 +137,6 @@ def main(config):
     return 
 
 if __name__ == "__main__":
-    config = yaml.load(open('genConfig.yaml', 'r'), Loader=yaml.FullLoader)
+    config = yaml.load(open('Config-DataGen.yaml', 'r'), Loader=yaml.FullLoader)
     main(config)
     

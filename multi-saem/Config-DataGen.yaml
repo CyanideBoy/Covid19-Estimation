@@ -1,8 +1,8 @@
 # Initial Population
-S0: 1e6
-I0: 0
-A0: 1
-R0: 0
+S0: 5e5
+I0: 4e5
+A0: 50001
+R0: 5e4
 
 
 # Parameters
@@ -17,8 +17,5 @@ T: 10000
 D: 10000
 
 # Save Path
-pkl_path: './simData_'
-plot_path: './plot_'
-
-
-## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7388782/
+pkl_path: 'simData_'
+plt_path: 'plot_'
